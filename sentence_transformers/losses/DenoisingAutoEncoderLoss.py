@@ -23,6 +23,7 @@ class DenoisingAutoEncoderLoss(nn.Module):
     def __init__(
             self,
             model: SentenceTransformer,
+            encoder_name_or_path: str = None,
             decoder_name_or_path: str = None,
             tie_encoder_decoder: bool = True
     ):
@@ -35,7 +36,7 @@ class DenoisingAutoEncoderLoss(nn.Module):
         self.encoder = model  # This will be the final model used during the inference time.
         self.tokenizer_encoder = model.tokenizer
 
-        encoder_name_or_path = model[0].auto_model.config._name_or_path
+        #encoder_name_or_path = model[0].auto_model.config._name_or_path
         if decoder_name_or_path is None:
             assert tie_encoder_decoder, "Must indicate the decoder_name_or_path argument when tie_encoder_decoder=False!"
         if tie_encoder_decoder:
