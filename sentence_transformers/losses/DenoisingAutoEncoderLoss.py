@@ -117,7 +117,7 @@ class DenoisingAutoEncoderLoss(nn.Module):
             encoder_attention_mask=source_features['attention_mask'][:, 0:1],
             labels=None,
             return_dict=None,
-            use_cache=False
+            #use_cache=False
         )
 
         # Calculate loss
