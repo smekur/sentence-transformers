@@ -23,6 +23,12 @@ from .evaluation import SentenceEvaluator
 from .util import import_from_string, batch_to_device, http_get
 from .models import Transformer, Pooling
 from . import __version__
+try:
+    import wandb
+
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 logger = logging.getLogger(__name__)
 
@@ -448,6 +454,8 @@ class SentenceTransformer(nn.Sequential):
             use_amp: bool = False,
             callback: Callable[[float, int, int], None] = None,
             show_progress_bar: bool = True,
+            wandb_project_name: str = None,
+            wandb_config: Dict[str, object] = {},
             checkpoint_path: str = None,
             checkpoint_save_steps: int = 500,
             checkpoint_save_total_limit: int = 1
@@ -506,6 +514,24 @@ class SentenceTransformer(nn.Sequential):
             steps_per_epoch = min([len(dataloader) for dataloader in dataloaders])
 
         num_train_steps = int(steps_per_epoch * epochs)
+
+        # Prepare logger
+        if wandb_available and wandb_project_name:
+            if not wandb.setup().settings.sweep_id:
+                config = {
+                    'epochs': epochs,
+                    'steps_per_epoch': steps_per_epoch,
+                    'scheduler': scheduler,
+                    'warmup_steps': warmup_steps,
+                    'weight_decay': weight_decay,
+                    'evaluation_steps': evaluation_steps,
+                    'output_path': output_path,
+                    'save_best_model': save_best_model,
+                    'max_grad_norm': max_grad_norm,
+                    'use_amp': use_amp,
+                }
+                wandb.init(project=wandb_project_name, config=config, **wandb_config)
+            wandb.watch(self)
 
         # Prepare optimizers
         optimizers = []
@@ -577,6 +603,15 @@ class SentenceTransformer(nn.Sequential):
 
                     optimizer.zero_grad()
 
+                    # if wandb init is called
+                    if wandb_available and wandb.run is not None and (training_steps + 1) % log_every == 0:
+                        wandb.log(
+                            {
+                                loss_model.__class__.__name__: loss_value.item(),
+                                "lr": scheduler.get_last_lr()[0],
+                            }, step=global_step
+                        )
+
                     if not skip_scheduler:
                         scheduler.step()
 
@@ -623,6 +658,9 @@ class SentenceTransformer(nn.Sequential):
             score = evaluator(self, output_path=output_path, epoch=epoch, steps=steps)
             if callback is not None:
                 callback(score, epoch, steps)
+            # if wandb_available and wandb.run is not None:  # if wandb init is called
+            #     wandb.log({evaluator.name if evaluator.name else evaluator.__class__.__name__: score}, step=global_step)
+
             if score > self.best_score:
                 self.best_score = score
                 if save_best_model:
