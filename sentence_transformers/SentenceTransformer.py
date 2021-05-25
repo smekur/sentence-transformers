@@ -604,7 +604,7 @@ class SentenceTransformer(nn.Sequential):
                     optimizer.zero_grad()
 
                     # if wandb init is called
-                    if wandb_available and wandb.run is not None and (training_steps + 1) % log_every == 0:
+                    if wandb_available and wandb.run is not None and (training_steps + 1) % 100 == 0:
                         wandb.log(
                             {
                                 loss_model.__class__.__name__: loss_value.item(),
